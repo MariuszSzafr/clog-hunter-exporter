@@ -8,7 +8,8 @@ import com.google.gson.JsonParser;
 import com.google.inject.Provides;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Desktop;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
@@ -195,20 +196,31 @@ private JLabel makeCenteredHeader(String text)
 		pagesLabel = makeLine("0");
 		exportTimeLabel = makeLine("Never");
 		wantedImportLabel = makeLine("Waiting");
-		openFolderButton = new JButton("Open Export Folder");
+		openFolderButton = new JButton("Copy Export Folder Path");
 
 		openFolderButton.addActionListener(e ->
 		{
 			try
 			{
 				Path exportDir = getPublicExportDir();
-
 				Files.createDirectories(exportDir);
-				openLocalFolder(exportDir);
+
+				String pathText = exportDir.toAbsolutePath().toString();
+
+				Toolkit.getDefaultToolkit()
+						.getSystemClipboard()
+						.setContents(new StringSelection(pathText), null);
+
+				client.addChatMessage(
+						ChatMessageType.GAMEMESSAGE,
+						"",
+						"Clog Hunter export folder path copied to clipboard.",
+						null
+				);
 			}
 			catch (Exception ex)
 			{
-				log.error("Failed opening export folder", ex);
+				log.error("Failed copying export folder path", ex);
 			}
 		});
 
@@ -777,23 +789,6 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 		return getSyncDir().resolve(WANTED_MEMORY_FILE_NAME);
 	}
 
-	private void openLocalFolder(Path folder) throws Exception
-	{
-		try
-		{
-			if (Desktop.isDesktopSupported())
-			{
-				Desktop.getDesktop().open(folder.toFile());
-				return;
-			}
-		}
-		catch (Exception ex)
-		{
-			log.warn("Desktop open failed for {}; trying explorer fallback", folder, ex);
-		}
-
-		Runtime.getRuntime().exec(new String[] {"explorer.exe", folder.toString()});
-	}
 
 	private String getString(JsonObject object, String key, String defaultValue)
 	{
