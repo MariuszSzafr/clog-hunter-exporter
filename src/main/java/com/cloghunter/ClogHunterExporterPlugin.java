@@ -8,10 +8,10 @@ import com.google.gson.JsonParser;
 import com.google.inject.Provides;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Toolkit;
-import java.awt.datatransfer.StringSelection;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
+import java.awt.datatransfer.StringSelection;
+import java.awt.Toolkit;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,6 +53,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.util.Text;
 
 @Slf4j
@@ -196,7 +197,7 @@ private JLabel makeCenteredHeader(String text)
 		pagesLabel = makeLine("0");
 		exportTimeLabel = makeLine("Never");
 		wantedImportLabel = makeLine("Waiting");
-		openFolderButton = new JButton("Copy Export Folder Path");
+		openFolderButton = new JButton("Open Export Folder");
 
 		openFolderButton.addActionListener(e ->
 		{
@@ -211,6 +212,8 @@ private JLabel makeCenteredHeader(String text)
 						.getSystemClipboard()
 						.setContents(new StringSelection(pathText), null);
 
+				LinkBrowser.browse(exportDir.toUri().toString());
+
 				client.addChatMessage(
 						ChatMessageType.GAMEMESSAGE,
 						"",
@@ -220,7 +223,14 @@ private JLabel makeCenteredHeader(String text)
 			}
 			catch (Exception ex)
 			{
-				log.error("Failed copying export folder path", ex);
+				log.error("Failed opening export folder", ex);
+
+				client.addChatMessage(
+						ChatMessageType.GAMEMESSAGE,
+						"",
+						"Clog Hunter could not open the export folder.",
+						null
+				);
 			}
 		});
 
@@ -761,7 +771,33 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 
 	private Path getPublicExportDir()
 	{
-		return getRootDir().resolve("exports");
+		return getRootDir()
+				.resolve("exports")
+				.resolve(getCurrentAccountFolderName());
+	}
+
+	private String getCurrentAccountFolderName()
+	{
+		String accountName = client.getLocalPlayer() == null
+				? "Unknown"
+				: client.getLocalPlayer().getName();
+
+		return safePathName(accountName);
+	}
+
+	private String safePathName(String value)
+	{
+		String cleaned = value == null ? "" : value.trim();
+
+		if (cleaned.isEmpty())
+		{
+			return "Unknown";
+		}
+
+		cleaned = cleaned.replaceAll("[\\\\/:*?\\\"<>|]", "_");
+		cleaned = cleaned.replaceAll("\\s+", " ").trim();
+
+		return cleaned.isEmpty() ? "Unknown" : cleaned;
 	}
 
 	private Path getSyncDir()
