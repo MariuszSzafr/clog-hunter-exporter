@@ -1,7 +1,6 @@
 package com.cloghunter;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -66,6 +65,9 @@ public class ClogHunterExporterPlugin extends Plugin
 	private Client client;
 
 	@Inject
+	private Gson gson;
+
+	@Inject
 	private ClientThread clientThread;
 
 	@Inject
@@ -88,8 +90,6 @@ public class ClogHunterExporterPlugin extends Plugin
 	private static final String STATUS_FILE_NAME = "clog_hunter_status.json";
 	private static final String WANTED_MEMORY_FILE_NAME = "clog_hunter_wanted_memory.json";
 	private static final int WANTED_IMPORT_CHECK_TICKS = 2;
-
-	private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	private volatile List<WantedItem> importedWantedItems = Collections.emptyList();
 	private volatile String wantedImportSourceName = "No app import";
@@ -1135,7 +1135,7 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 			Files.createDirectories(getSyncDir());
 			Path tmpFile = memoryFile.resolveSibling(memoryFile.getFileName().toString() + ".tmp");
 
-			Files.writeString(tmpFile, PRETTY_GSON.toJson(memoryRoot));
+			Files.writeString(tmpFile, gson.toJson(memoryRoot));
 			Files.move(tmpFile, memoryFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		}
 		catch (Exception ex)
@@ -1502,7 +1502,7 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 
 			Path tmpFile = statusFile.resolveSibling(statusFile.getFileName().toString() + ".tmp");
 
-			Files.writeString(tmpFile, PRETTY_GSON.toJson(statusRoot));
+			Files.writeString(tmpFile, gson.toJson(statusRoot));
 			Files.move(tmpFile, statusFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 		}
 		catch (Exception ex)
@@ -1970,7 +1970,7 @@ private String collectionCategoryFromPageRowChildId(int childId)
 
 		updateScanState(finalMissingPages, finalCapturedPages, finalCategoryName, finalPageName);
 
-		Files.writeString(exportFile, PRETTY_GSON.toJson(root));
+		Files.writeString(exportFile, gson.toJson(root));
 
 		log.debug("Updated accumulated collection log export for page: {}", pageName);
 	}
