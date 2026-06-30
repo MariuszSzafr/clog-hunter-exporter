@@ -6,23 +6,21 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.inject.Provides;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.image.BufferedImage;
-import java.awt.datatransfer.StringSelection;
-import java.awt.Toolkit;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -32,7 +30,9 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+
 import lombok.extern.slf4j.Slf4j;
+
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
@@ -42,6 +42,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -63,6 +64,7 @@ import net.runelite.client.util.Text;
 public class ClogHunterExporterPlugin extends Plugin
 {
 	private static final int COLLECTION_LOG_ACTIVE_TAB_VARBIT_ID = 6905;
+
 	@Inject
 	private Client client;
 
@@ -101,21 +103,13 @@ public class ClogHunterExporterPlugin extends Plugin
 
 	private PluginPanel panel;
 	private NavigationButton navButton;
-	private JLabel statusLabel;
 	private JLabel accountLabel;
-	private JLabel categoryLabel;
-	private JLabel pageLabel;
-	private JLabel countLabel;
-	private JLabel pagesLabel;
-	private JLabel exportTimeLabel;
 	private JLabel wantedImportLabel;
 	private JPanel scanCardsPanel;
 	private JScrollPane scanCardsScroll;
 	private volatile List<String> missingScanPages = Collections.emptyList();
 	private volatile String nextScanPage = "";
 	private volatile String nextScanCategory = "Unknown";
-	private volatile String scanCategoryName = "Unknown";
-	private volatile String scanLastPageName = "None";
 	private volatile int scanCapturedPageCount = 0;
 	private JButton openFolderButton;
 
@@ -164,16 +158,16 @@ public class ClogHunterExporterPlugin extends Plugin
 		return label;
 	}
 
-private JLabel makeCenteredHeader(String text)
+	private JLabel makeCenteredHeader(String text)
 	{
 		JLabel label = makeHeader(text);
 		label.setHorizontalAlignment(SwingConstants.CENTER);
 		label.setAlignmentX(0.5f);
-		label.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 24));
+		label.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 		return label;
 	}
 
-@Override
+	@Override
 	protected void startUp() throws Exception
 	{
 		log.info("=== CLOG HUNTER EXPORTER STARTED ===");
@@ -189,13 +183,7 @@ private JLabel makeCenteredHeader(String text)
 		content.setBackground(new Color(25, 25, 25));
 		content.setBorder(BorderFactory.createEmptyBorder(10, 12, 6, 12));
 
-		statusLabel = makeLine("Waiting");
 		accountLabel = makeLine("Unknown");
-		categoryLabel = makeLine("Unknown");
-		pageLabel = makeLine("None");
-		countLabel = makeLine("0");
-		pagesLabel = makeLine("0");
-		exportTimeLabel = makeLine("Never");
 		wantedImportLabel = makeLine("Waiting");
 		openFolderButton = new JButton("Open Export Folder");
 
@@ -206,20 +194,7 @@ private JLabel makeCenteredHeader(String text)
 				Path exportDir = getPublicExportDir();
 				Files.createDirectories(exportDir);
 
-				String pathText = exportDir.toAbsolutePath().toString();
-
-				Toolkit.getDefaultToolkit()
-						.getSystemClipboard()
-						.setContents(new StringSelection(pathText), null);
-
-				LinkBrowser.browse(exportDir.toUri().toString());
-
-				client.addChatMessage(
-						ChatMessageType.GAMEMESSAGE,
-						"",
-						"Clog Hunter export folder path copied to clipboard.",
-						null
-				);
+				LinkBrowser.open(exportDir.toAbsolutePath().toString());
 			}
 			catch (Exception ex)
 			{
@@ -394,7 +369,7 @@ private JLabel makeCenteredHeader(String text)
 		return Text.removeTags(tabs[tabIndex].getName());
 	}
 
-private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
+	private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 	{
 		JsonObject knownByCategory = root.getAsJsonObject("known_pages_by_category");
 
@@ -510,10 +485,8 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 		nextScanPage = safeMissing.isEmpty() ? "" : scanPageName(safeMissing.get(0));
 		nextScanCategory = safeMissing.isEmpty() ? "Unknown" : scanPageCategory(safeMissing.get(0));
 		scanCapturedPageCount = Math.max(0, capturedPages);
-		scanCategoryName = categoryName == null || categoryName.trim().isEmpty() ? "Unknown" : categoryName;
-		scanLastPageName = pageName == null || pageName.trim().isEmpty() ? "None" : pageName;
 
-		refreshScanCards(safeMissing, scanCapturedPageCount, scanCategoryName, scanLastPageName);
+		refreshScanCards(safeMissing, scanCapturedPageCount, categoryName, pageName);
 	}
 
 	public List<String> getMissingScanPages()
@@ -541,16 +514,6 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 		return scanCapturedPageCount;
 	}
 
-	public String getScanCategoryName()
-	{
-		return scanCategoryName == null ? "Unknown" : scanCategoryName;
-	}
-
-	public String getScanLastPageName()
-	{
-		return scanLastPageName == null ? "None" : scanLastPageName;
-	}
-
 	public boolean hasScanPagesRemaining()
 	{
 		return getMissingScanPageCount() > 0;
@@ -565,11 +528,11 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 				BorderFactory.createLineBorder(new Color(76, 76, 76)),
 				BorderFactory.createEmptyBorder(0, 0, 0, 0)
 		));
-		outer.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 58));
+		outer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
 
 		JPanel accent = new JPanel();
 		accent.setBackground(Color.decode(accentHex));
-		accent.setPreferredSize(new java.awt.Dimension(5, 58));
+		accent.setPreferredSize(new Dimension(5, 58));
 
 		JPanel body = new JPanel(new BorderLayout());
 		body.setBackground(new Color(34, 34, 34));
@@ -600,7 +563,7 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 		panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
 		openFolderButton.setAlignmentX(0.5f);
-		openFolderButton.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 30));
+		openFolderButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 		openFolderButton.setFocusPainted(false);
 
 		panel.add(openFolderButton);
@@ -617,11 +580,11 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 				BorderFactory.createLineBorder(new Color(78, 78, 78)),
 				BorderFactory.createEmptyBorder(0, 0, 0, 0)
 		));
-		outer.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 88));
+		outer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 88));
 
 		JPanel accent = new JPanel();
 		accent.setBackground(Color.decode(accentHex));
-		accent.setPreferredSize(new java.awt.Dimension(5, 88));
+		accent.setPreferredSize(new Dimension(5, 88));
 
 		JPanel textWrap = new JPanel();
 		textWrap.setLayout(new javax.swing.BoxLayout(textWrap, javax.swing.BoxLayout.Y_AXIS));
@@ -762,11 +725,7 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 
 	private Path getRootDir()
 	{
-		return Paths.get(
-				System.getProperty("user.home"),
-				".runelite",
-				"clog-hunter"
-		);
+		return RuneLite.RUNELITE_DIR.toPath().resolve("clog-hunter");
 	}
 
 	private Path getPublicExportDir()
@@ -1384,13 +1343,6 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 
 		appendStatusEvents(events);
 
-		String exportTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-
-		SwingUtilities.invokeLater(() ->
-		{
-			statusLabel.setText("Chat Sync");
-			exportTimeLabel.setText(exportTime);
-		});
 
 		client.addChatMessage(
 				ChatMessageType.GAMEMESSAGE,
@@ -1675,7 +1627,7 @@ private List<String> buildMissingPagesList(JsonObject root, JsonObject tabs)
 		appendStatusEvents(events);
 	}
 
-private String guessWidgetLabel(Widget widget)
+	private String guessWidgetLabel(Widget widget)
 	{
 		String text = clean(widget.getText());
 
@@ -1694,7 +1646,7 @@ private String guessWidgetLabel(Widget widget)
 		return "";
 	}
 
-private boolean looksLikeCleanCollectionPageRow(Widget widget)
+	private boolean looksLikeCleanCollectionPageRow(Widget widget)
 	{
 		if (widget == null)
 		{
@@ -1810,7 +1762,7 @@ private boolean looksLikeCleanCollectionPageRow(Widget widget)
 		return "";
 	}
 
-private String collectionCategoryFromPageRowChildId(int childId)
+	private String collectionCategoryFromPageRowChildId(int childId)
 	{
 		if (childId == 11)
 		{
@@ -1977,29 +1929,13 @@ private String collectionCategoryFromPageRowChildId(int childId)
 			capturedPages += tab.keySet().size();
 		}
 
-		String exportTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 		List<String> missingPages = buildMissingPagesList(root, tabs);
 
 		final String finalPlayerName = playerName;
-		final String finalCategoryName = categoryName;
-		final String finalPageName = clean(pageName);
-		final int finalItemCount = itemArray.size();
-		final int finalCapturedPages = capturedPages;
-		final String finalExportTime = exportTime;
-		final List<String> finalMissingPages = missingPages;
 
-		SwingUtilities.invokeLater(() ->
-		{
-			statusLabel.setText("Recording");
-			accountLabel.setText(finalPlayerName);
-			categoryLabel.setText(finalCategoryName);
-			pageLabel.setText(finalPageName);
-			countLabel.setText(String.valueOf(finalItemCount));
-			pagesLabel.setText(String.valueOf(finalCapturedPages));
-			exportTimeLabel.setText(finalExportTime);
-		});
+		SwingUtilities.invokeLater(() -> accountLabel.setText(finalPlayerName));
 
-		updateScanState(finalMissingPages, finalCapturedPages, finalCategoryName, finalPageName);
+		updateScanState(missingPages, capturedPages, categoryName, clean(pageName));
 
 		Files.writeString(exportFile, gson.toJson(root));
 

@@ -16,7 +16,6 @@ class ClogHunterOverlay extends OverlayPanel
 	private final ClogHunterExporterConfig config;
 	private static final Color GOLD = new Color(255, 176, 0);
 	private static final Color GREEN = new Color(87, 214, 90);
-	private static final Color BLUE = new Color(90, 163, 255);
 	private static final Color MUTED = new Color(180, 180, 180);
 
 	@Inject
@@ -31,7 +30,7 @@ class ClogHunterOverlay extends OverlayPanel
 	public Dimension render(Graphics2D graphics)
 	{
 		panelComponent.getChildren().clear();
-		panelComponent.setPreferredSize(new java.awt.Dimension(210, 0));
+		panelComponent.setPreferredSize(new Dimension(210, 0));
 
 		boolean renderedSomething = false;
 
@@ -168,7 +167,7 @@ class ClogHunterOverlay extends OverlayPanel
 		return text.substring(0, Math.max(0, maxLength - 1)) + "…";
 	}
 
-private String shorten(String text, int maxLength)
+	private String shorten(String text, int maxLength)
 	{
 		if (text == null || text.length() <= maxLength)
 		{
